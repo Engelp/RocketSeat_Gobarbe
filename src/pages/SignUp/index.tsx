@@ -1,12 +1,11 @@
-import React, { useRef, useCallback } from 'react';
-import { FiLogIn, FiMail, FiLock } from 'react-icons/fi';
+import React, { useCallback, useRef } from 'react';
+import { FiArrowLeft, FiMail, FiUser, FiLock } from 'react-icons/fi';
 import { FormHandles } from '@unform/core';
 import { Form } from '@unform/web';
 import * as Yup from 'yup';
 import { Link, useHistory } from 'react-router-dom';
+import api from '../../services/api';
 
-import { useAuth } from '../../hooks/auth';
-import { useToast } from '../../hooks/toast';
 import getValidationErrors from '../../utils/getValidationErrors';
 
 import logoIgm from '../../assets/logo.svg';
@@ -15,41 +14,46 @@ import Input from '../../components/Input';
 import Button from '../../components/Button';
 
 import { Container, Content, AnimationContainer, Background } from './styles';
+import { useToast } from '../../hooks/toast';
 
-interface SignInFormData {
+interface SignUpFormData {
+  name: string;
   email: string;
   password: string;
 }
 
-const SignIn: React.FC = () => {
+const SignUp: React.FC = () => {
   const formRef = useRef<FormHandles>(null);
-
-  const { signIn } = useAuth();
   const { addToast } = useToast();
   const history = useHistory();
 
   const handleSubmin = useCallback(
-    async (data: SignInFormData) => {
+    async (data: SignUpFormData) => {
+      // se der erro object
       try {
         formRef.current?.setErrors({});
 
         const schema = Yup.object().shape({
+          name: Yup.string().required('Nome obrigatório'),
           email: Yup.string()
             .required('E-mail obrigatório')
             .email('Digite um e-mail válido'),
-          password: Yup.string().required('Senha obrigatória'),
+          password: Yup.string().min(6, 'No mínimo 6 digitos'),
         });
 
         await schema.validate(data, {
           abortEarly: false,
         });
 
-        await signIn({
-          email: data.email,
-          password: data.password,
-        });
+        await api.post('/users', data);
 
-        history.push('/dashboard');
+        history.push('/');
+
+        addToast({
+          type: 'success',
+          title: 'Cadastro realizado!',
+          description: 'Voce ja pode fazer o seu logon no GoBaber',
+        });
       } catch (err) {
         if (err instanceof Yup.ValidationError) {
           const errors = getValidationErrors(err);
@@ -61,23 +65,25 @@ const SignIn: React.FC = () => {
 
         addToast({
           type: 'error',
-          title: 'erro na autenticacao',
-          description: 'Ocorreu um erro ao fazer login, cheque as credenciais.',
+          title: 'erro no cadastro',
+          description: 'Ocorreu um erro ao fazer cadastro, tente novamente.',
         });
       }
     },
-    [signIn, history, addToast],
+    [addToast, history],
   );
 
   return (
     <Container>
+      <Background />
       <Content>
         <AnimationContainer>
           <img src={logoIgm} alt="GoBarber" />
 
           <Form ref={formRef} onSubmit={handleSubmin}>
-            <h1>Faça seu logon</h1>
+            <h1>Faça seu cadastro</h1>
 
+            <Input name="name" icon={FiUser} placeholder="Nome" />
             <Input name="email" icon={FiMail} placeholder="E-mail" />
 
             <Input
@@ -87,21 +93,17 @@ const SignIn: React.FC = () => {
               placeholder="Senha"
             />
 
-            <Button type="submit">Entrar</Button>
-
-            <a href="forgot">Esqueci minha senha</a>
+            <Button type="submit">Cadastrar</Button>
           </Form>
 
-          <Link to="/signup">
-            <FiLogIn />
-            Criar Conta
+          <Link to="/">
+            <FiArrowLeft />
+            Voltar para logon
           </Link>
         </AnimationContainer>
       </Content>
-
-      <Background />
     </Container>
   );
 };
 
-export default SignIn;
+export default SignUp;
